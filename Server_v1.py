@@ -22,4 +22,8 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
         #Convertimos la lista de tareas de formato JSON a Bytes, ya que la red no entiende de caracteres
         return [json_return.encode('utf-8')] #Se envia en forma de lista ya que el servidor espera un iterable con caracteres en bytes dentro
 
-
+HOSTNAME = 'localhost'
+PORTNUMBER = 9292
+if __name__ == '__main__' : 
+    server = make_server(HOSTNAME,PORTNUMBER,process_request)
+    server.serve_forever()
