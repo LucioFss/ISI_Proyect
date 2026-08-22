@@ -3,7 +3,7 @@ import json
 #Usaremos una variable "tasks" con el fin de usarla para almacenar la informacion que posee el servidor
 #Es una variable que almacena una lista de diccionarios, cada diccionario tiene la estructura {id : <<numero>>, nombreTarea : <<'Nombre de la tarea'>>, realizada : <<true/false>>}
 
-tasks = [{"id" : 1, "nombreTarea" : "Montar servidor", 'realizado' : False}]
+listaTareas = [{'id' : 0, 'title' : "Agregar peticion GET", 'done' : False}]
 
 #Definicion que procesara la peticion de el cliente
 
@@ -15,15 +15,65 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
     if verb == 'GET' and path == '/tasks' :
 
         #indicamos el estado de la respuesta y ademas las cabeceras que esta llevara, como el formato de la respuesta y cual es el servidor
-        start_response('200 OK',[('Format','application/json'),('Server', 'server_v1')])
-
+        start_response('200 OK',[('Content-Type','application/json'),('Server', 'server_v1')])
+        
         #La lista de tareas se convierte a formato JSON y se almacena en ina variable
-        json_return = json.dump(tasks)
-        #Convertimos la lista de tareas de formato JSON a Bytes, ya que la red no entiende de caracteres
-        return [json_return.encode('utf-8')] #Se envia en forma de lista ya que el servidor espera un iterable con caracteres en bytes dentro
+        jsonReturn = json.dumps(listaTareas)
 
+        #Convertimos la lista de tareas de formato JSON a Bytes, ya que la red no entiende de caracteres
+        return [jsonReturn.encode('utf-8')] #Se envia en forma de lista ya que el servidor espera un iterable con caracteres en bytes dentro
+
+    elif verb == 'POST' and path == '/tasks' : 
+        #Usaremos try-catch para controlar si el input es vacio
+        try:
+            inpunt_Length = int(environ.get('CONTENT_LENGTH', 0)) #Obtenemos el tamaño de la lista de entrada
+        except(ValueError): #ValueError surge cuando el valor es texto y no se puede pasar a numero, TypeError puede aparecer si no exist la cabecera de la peticion 
+            inpunt_Length = 0
+        
+        #Leemos el input y tomamos su contenido en JSON decodificado en UTF-8
+        read_input = environ['wsgi.input'].read(inpunt_Length) #Primero permitimos leer el contenido de la request (environ['wsgi.input']) y luego lo leemos hasta input_Length
+
+        #Inicializamos como un diccionario la variable que almacenara el diccionario proveniente de el metodo ejecutado por el cliente
+        values_input = {} 
+
+        #ahora vamos a traducir de UTF-8 para pasarlo de JSON a valores, diccionarios mas especificamente
+        values_input = json.loads(read_input.decode('utf-8'))
+        listaTareas.append({'id' : len(listaTareas)+1, 'title' : values_input.get('title'), 'done' : values_input.get('done')}) 
+
+        #Se realiza la respuesta
+        start_response('201 Created',[('Content-Type','application/json'),('Server', 'server_v1')])
+        jsonReturn = json.dumps(listaTareas)    
+        return [jsonReturn.encode('utf-8')]
+    
+    elif verb == 'GET' and path.startswith('/tasks/') : 
+        split_path = path.split('/') #Separamos en terminos por '/' la ruta y formamos una lista
+        try:
+            #Tomamos el valor numerico que se encuentra en la ultima posicion de la lista de terminos
+            id_input = int(split_path[-1])
+            print(id_input)
+        except ValueError : 
+            #Si el valor que venia con la ruta ni es un numero arrojamos un error 404 cortando la ejecucion
+            start_response("404 Not Response", [('Content-Type', 'application/json')])
+            return [b'{"error" : "Fomato de id invalido"}']
+        
+        #Si el valor que venia con la ruta era un entero entonces buscamos en listaTareas la tarea que posee el id que buscamos
+        for task in listaTareas : 
+            if id_input == task['id'] : 
+                #Si encontramos la tarea con ese id, preparamos la respuesta, pasamos json la tarea y la codificamos a bytes UTF-8
+                start_response('200 OK', [('Content-Type', 'application/json')])
+                jsonReturn = json.dumps(task)
+                return [jsonReturn.encode('utf-8')]
+
+        start_response("404 Not Found", [('Content-Type', 'application/json')])
+        return [b'{"error" : "id no encontrado"}']
+
+    else : 
+        start_response('404 Not Found', [('Content-Type', 'application/json')])
+        return [b'{"error": "Ruta o Verbo no encontrado"}']
 HOSTNAME = 'localhost'
 PORTNUMBER = 9292
 if __name__ == '__main__' : 
+    print("Inicializando servidor...")
     server = make_server(HOSTNAME,PORTNUMBER,process_request)
+    print(f"Servidor inicializado y funcionando en https://{HOSTNAME}:{PORTNUMBER}/ usa Ctrl + c para pararlo")
     server.serve_forever()
