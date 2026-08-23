@@ -1,2 +1,5 @@
 # ISI_Proyect1
-En este repositorio se almacena la primera tarea, por el momento, de el proyecto de el taller de Ingenieria de Software, la primera parte consiste en montar un servidor local que reponda a preguntas basicas de el cliente
+En este repositorio se almacena la primera tarea, por el momento, de el proyecto de el taller de Ingenieria de Software, la primera parte consiste en montar un servidor local que reponda a preguntas basicas de el cliente.
+
+__DIFERENCIAS ENTRE LOS METODOS__
+Las principales diferencias entre los metodos usados en este proyecto es el para que se usan, GET se utiliza para consulta, POST para agregar información al servidor, PATCH para modificar información ya existente en el servidor, y DELETE se utliza para eliminar información de el servidor. Todos estos metodos, menos POST son idempotentes, es decir que sin importar cuantas veces se realize una request de ese tipo el resultado siempre es el mismo, POST no idempotente debido a que cada vez que se solicita crea nueva información, esta lleva asociada un identificador que en cada llamada es nuevo, por ende si la request se repite muchas veces con la misma información se creara un nuevo registro en el servidor aunque la información se encuentre repetida.
