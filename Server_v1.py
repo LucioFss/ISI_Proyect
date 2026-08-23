@@ -3,7 +3,7 @@ import json
 #Usaremos una variable "tasks" con el fin de usarla para almacenar la informacion que posee el servidor
 #Es una variable que almacena una lista de diccionarios, cada diccionario tiene la estructura {id : <<numero>>, nombreTarea : <<'Nombre de la tarea'>>, realizada : <<true/false>>}
 
-listaTareas = [{'id' : 0, 'title' : "Agregar peticion GET", 'done' : False}]
+listaTareas = [{'id' : '1', 'title' : "Agregar peticion GET", 'done' : False}]
 
 #Definicion que procesara la peticion de el cliente
 
@@ -26,19 +26,20 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
     elif verb == 'POST' and path == '/tasks' : 
         #Usaremos try-catch para controlar si el input es vacio
         try:
-            inpunt_Length = int(environ.get('CONTENT_LENGTH', 0)) #Obtenemos el tamaño de la lista de entrada
-        except(ValueError): #ValueError surge cuando el valor es texto y no se puede pasar a numero, TypeError puede aparecer si no exist la cabecera de la peticion 
-            inpunt_Length = 0
+            inpunt_Length = int(environ.get('CONTENT_LENGTH', 0))   #Obtenemos el tamaño de la lista de entrada
+        except(ValueError):    #ValueError surge cuando el valor es texto y no se puede pasar a numero, TypeError puede aparecer si no exist la cabecera de la peticion 
+            inpunt_Length = 0   
         
         #Leemos el input y tomamos su contenido en JSON decodificado en UTF-8
-        read_input = environ['wsgi.input'].read(inpunt_Length) #Primero permitimos leer el contenido de la request (environ['wsgi.input']) y luego lo leemos hasta input_Length
+        read_input = environ['wsgi.input'].read(inpunt_Length)  #Primero permitimos leer el contenido de la request (environ['wsgi.input']) y luego lo leemos hasta input_Length
 
         #Inicializamos como un diccionario la variable que almacenara el diccionario proveniente de el metodo ejecutado por el cliente
         values_input = {} 
 
         #ahora vamos a traducir de UTF-8 para pasarlo de JSON a valores, diccionarios mas especificamente
         values_input = json.loads(read_input.decode('utf-8'))
-        listaTareas.append({'id' : len(listaTareas)+1, 'title' : values_input.get('title'), 'done' : values_input.get('done')}) 
+        new_task = {'id' : len(listaTareas)+1, 'title' : values_input.get('title'), 'done' : values_input.get('done')}
+        listaTareas.append(new_task) 
 
         #Se realiza la respuesta
         start_response('201 Created',[('Content-Type','application/json'),('Server', 'server_v1')])
@@ -46,16 +47,12 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
         return [jsonReturn.encode('utf-8')]
     
     elif verb == 'GET' and path.startswith('/tasks/') : 
-        split_path = path.split('/') #Separamos en terminos por '/' la ruta y formamos una lista
-        try:
-            #Tomamos el valor numerico que se encuentra en la ultima posicion de la lista de terminos
-            id_input = int(split_path[-1])
-            print(id_input)
-        except ValueError : 
-            #Si el valor que venia con la ruta ni es un numero arrojamos un error 404 cortando la ejecucion
-            start_response("404 Not Response", [('Content-Type', 'application/json')])
-            return [b'{"error" : "Fomato de id invalido"}']
-        
+        #Separamos en terminos por '/' la ruta y formamos una lista
+        split_path = path.split('/')
+
+        #Obtenemos el id que contiene path en la ultima posicion de la separacion que realizamos anteriormente
+        id_input = split_path[-1]
+
         #Si el valor que venia con la ruta era un entero entonces buscamos en listaTareas la tarea que posee el id que buscamos
         for task in listaTareas : 
             if id_input == task['id'] : 
@@ -64,15 +61,79 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
                 jsonReturn = json.dumps(task)
                 return [jsonReturn.encode('utf-8')]
 
+        #Si no se encontro la tarea con el id ingresado, se retorna un error 404
+            start_response("404 Not Found", [('Content-Type', 'application/json')])
+            return [b'{"error" : "id no encontrado"}']
+    
+    elif verb == 'PATCH' and path.startswith('/tasks/') :
+        split_path = path.split('/')
+
+        #Obtenemos el id que contiene path en la ultima posicion de la separacion que realizamos anteriormente
+        id_input = split_path[-1]
+
+        #Usaremos try-catch para controlar si el input es vacio
+        try:
+            inpunt_Length = int(environ.get('CONTENT_LENGTH', 0))
+
+        except ValueError :
+            inpunt_Length = 0
+
+        #Delimitamos lo que debe de leerse de la entrada, que es todo
+        read_input = environ['wsgi.input'].read(inpunt_Length)
+
+        #Desconvertimos la entrada de bytes a texto, y luego lo quitamos el formato json
+        values_input = json.loads(read_input.decode('utf-8'))
+
+        #Se busca la tarea con el mismo valor de id de entrada
+        for task in listaTareas :
+            if id_input == task['id'] : 
+
+                #Tomamos cada key de el diccionario de entrada con su valor, exeptuando el id
+                for key, value in values_input.items() :
+                    if key != 'id' :
+                        task[key] = value
+
+                #Una vez modificados los valores de la tarea, retornamos que la operacion se realizo con exito y la tarea modificada
+                start_response('200 OK', [('Content-Type', 'application/json')])
+                jsonReturn = json.dumps(task)
+                return [jsonReturn.encode('utf-8')]
+
+        #Si no se encontro la tarea con el id ingresado, se retorna un error 404
         start_response("404 Not Found", [('Content-Type', 'application/json')])
         return [b'{"error" : "id no encontrado"}']
+    
+    #Metodo que elimina una tarea segun el id ingresado en la ruta
+    elif verb == 'DELETE' and path.startswith('/tasks/'):
+        #Tratamos a la ruta con el fin de obtener el id en ella
+        split_path = path.split('/')
 
+        #Obtenemos el id que contiene path en la ultima posicion de la separacion que realizamos anteriormente
+        id_input = split_path[-1]
+
+        #Se busca la tarea con el mismo valor de id de entrada
+        for task in listaTareas :
+            #Se compara el id de entrada con el de una tarea existente en la lista de taeas
+            if id_input == task['id'] :
+                #Si se encontro se remueve la tarea con el id buscado
+                listaTareas.remove(task)
+
+                #Retornamos el codigo y la cabecera de un retorno vacio
+                start_response("204 No Content",[])
+                return [b'']
+            
+        #Si no se encontro la tarea con el id ingresado, se retorna un error 404
+        start_response("404 Not Found", [('Content-Type', 'application/json')])
+        return [b'{"error" : "id no encontrado"}']
+    
     else : 
         start_response('404 Not Found', [('Content-Type', 'application/json')])
         return [b'{"error": "Ruta o Verbo no encontrado"}']
+
+#Declaramos el nombre del host del servidor
 HOSTNAME = 'localhost'
+#Declaramos el puerto
 PORTNUMBER = 9292
-if __name__ == '__main__' : 
+if __name__ == '__main__' :
     print("Inicializando servidor...")
     server = make_server(HOSTNAME,PORTNUMBER,process_request)
     print(f"Servidor inicializado y funcionando en https://{HOSTNAME}:{PORTNUMBER}/ usa Ctrl + c para pararlo")
