@@ -27,7 +27,7 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
         try:
 
             inpunt_Length = int(environ.get('CONTENT_LENGTH', 0)) #Obtenemos el tamaño de la lista de entrada
-        except(ValueError): #ValueError surge cuando el valor es texto y no se puede pasar a numero, TypeError puede aparecer si no exist la cabecera de la peticion 
+        except(ValueError,TypeError): #ValueError surge cuando el valor es texto y no se puede pasar a numero, TypeError puede aparecer si no exist la cabecera de la peticion 
             inpunt_Length = 0   
         
         #Leemos el input y tomamos su contenido en JSON decodificado en UTF-8
@@ -63,8 +63,8 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
                 return [jsonReturn.encode('utf-8')]
 
         #Si no se encontro la tarea con el id ingresado, se retorna un error 404
-            start_response("404 Not Found", [('Content-Type', 'application/json')])
-            return [b'{"error" : "id no encontrado"}']
+        start_response("404 Not Found", [('Content-Type', 'application/json')])
+        return [b'{"error" : "id no encontrado"}']
 
     #Metodo que permite reemplazar valores de una tarea con el id colocado en la ruta
     elif verb == 'PATCH' and path.startswith('/tasks/') :
@@ -77,7 +77,7 @@ def process_request(environ, start_response):   #Los campos reciben environ (met
         try:
             inpunt_Length = int(environ.get('CONTENT_LENGTH', 0))
 
-        except ValueError :
+        except (ValueError,TypeError) :
             inpunt_Length = 0
 
         #Delimitamos lo que debe de leerse de la entrada, que es todo
@@ -138,5 +138,5 @@ PORTNUMBER = 9292
 if __name__ == '__main__' :
     print("Inicializando servidor...")
     server = make_server(HOSTNAME,PORTNUMBER,process_request)
-    print(f"Servidor inicializado y funcionando en https://{HOSTNAME}:{PORTNUMBER}/ usa Ctrl + c para pararlo")
+    print(f"Servidor inicializado y funcionando en http://{HOSTNAME}:{PORTNUMBER}/ usa Ctrl + c para pararlo")
     server.serve_forever()
